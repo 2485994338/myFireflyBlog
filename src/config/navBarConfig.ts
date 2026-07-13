@@ -38,12 +38,25 @@ const getDynamicNavBarConfig = (): NavBarConfig => {
 
 	// 留言板
 	links.push(LinkPresets.Guestbook);
-	// 文档
+	// 链接
 	links.push({
-		name: "文档",
-		url: "https://docs-firefly.cuteleaf.cn",
-		external: true,
-		icon: "material-symbols:docs",
+		name: "链接",
+		url: "#",
+		icon: "material-symbols:link",
+		children: [
+			{
+				name: "文档",
+				url: "https://docs-firefly.cuteleaf.cn",
+				external: true,
+				icon: "material-symbols:docs",
+			},
+			{
+				name: "项目地址",
+				url: "https://github.com/2485994338/myFireflyBlog",
+				external: true,
+				icon: "fa7-brands:github",
+			},
+		],
 	});
 
 	return { links } as NavBarConfig;
