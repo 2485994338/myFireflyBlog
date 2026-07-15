@@ -46,7 +46,7 @@ jobs:
           username: ${{ secrets.SERVER_USERNAME }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           source: "server/nginx/default.conf"
-          target: "/root/cc/myFireflyBlog/conf/"
+          target: "/root/cc/nginx/conf/"
           strip_components: 2
           rm: true
 
@@ -58,6 +58,9 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             set -e
+            echo "🧪 确保配置目录存在..."
+            mkdir -p /root/cc/nginx/conf
+
             echo "🧪 测试 nginx 配置..."
             docker exec myFireflyBlog nginx -t
 
