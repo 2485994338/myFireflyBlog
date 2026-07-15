@@ -1,7 +1,7 @@
 ---
 title: 隐藏的博客文章还在首页显示？排查 Astro draft 机制问题
 published: 2026-07-15
-description: 排查 Astro 博客中 draft: true 文章仍显示预览和分类计数错误的经历，以及 HTML 缓存策略的优化
+description: "排查 Astro 博客中 draft: true 文章仍显示预览和分类计数错误的经历，以及 HTML 缓存策略的优化"
 tags: [Astro, 调试, 缓存, GitHub Pages, nginx]
 category: 技术实践
 draft: false
