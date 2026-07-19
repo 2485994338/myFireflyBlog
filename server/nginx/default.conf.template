@@ -118,6 +118,46 @@ server {
     }
 
     # ============================================
+    # Coze AI 助手 API 网关（第二道防线前置）
+    #
+    # 第一道防线（Nginx 层）:
+    #   allow/deny 硬拦截，非白名单 IP 直接返回 403
+    #   即使请求到达 Nginx 也不会转发到后端
+    #
+    # 第二道防线（Java IpWhitelistFilter 层）:
+    #   应用层再次校验，防御 Nginx 配置遗漏或
+    #   容器间直连绕过 Nginx 的场景
+    #
+    # 白名单 IP 来源:
+    #   ${DEV_MACHINE_IP}      开发机（由 GitHub Secret 注入）
+    #   ${SERVER_HOST}         本服务器（由 GitHub Secret 注入）
+    #   127.0.0.1 / ::1         localhost（固定）
+    #
+    # 部署前确认 proxy_pass 地址:
+    #   - 同机 Docker 容器: host.docker.internal:8080
+    #   - --network host 模式:   localhost:8080
+    #   - 跨机部署:              <目标服务器IP>:8080
+    # ============================================
+    location /api/coze/ {
+        # ---- IP 白名单（Nginx 层硬拦截） ----
+        allow 127.0.0.1;
+        allow ::1;
+        allow ${DEV_MACHINE_IP};     # 开发机出口 IP（从 Secret 注入）
+        allow ${SERVER_HOST};        # 博客服务器 IP（从 Secret 注入）
+        deny all;                     # 其他 IP → 403 Forbidden
+
+        # ---- 反向代理到后端 ----
+        proxy_pass http://host.docker.internal:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        # 后端返回 403/429/503 时不缓存，透传到客户端
+        proxy_no_cache 1;
+        proxy_cache_bypass 1;
+    }
+
+    # ============================================
     # 安全：禁止访问隐藏文件
     # ============================================
     location ~ /\. {

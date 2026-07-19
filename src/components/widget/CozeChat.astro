@@ -1,0 +1,103 @@
+---
+/**
+ * CozeChat.astro
+ * Coze AI 助手聊天浮窗 — 嵌入 Coze Web SDK，与 myFireflyBlog 博客页面集成
+ *
+ * 功能:
+ * - 从后端获取/刷新 access_token
+ * - 检测 403（IP 白名单拦截）和 503（额度耗尽）并降级提示
+ * - 访客隔离（基于 localStorage 维持 visitor ID）
+ * - 定时 token 刷新由后端 TokenRefreshService 完成，前端 onRefreshToken 仅取最新 token
+ *
+ * 依赖: Coze Web SDK (https://sf-cdn.coze.com/web-sdk/)
+ */
+---
+
+<!-- Coze Web SDK CDN — 版本锁定为 1.25.0，升级前请验证兼容性 -->
+<script is:inline src="https://sf-cdn.coze.com/web-sdk/1.25.0/js/index.js"></script>
+
+<script is:inline>
+  (function () {
+    // ===== 配置 =====
+    const BOT_ID = "7664222715091370036";
+    const API_BASE = "/api/coze";
+
+    // ===== 访客 ID（会话隔离） =====
+    let visitorId = localStorage.getItem("coze_visitor_id");
+    if (!visitorId) {
+      visitorId = "v_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+      localStorage.setItem("coze_visitor_id", visitorId);
+    }
+
+    // ===== Token 获取/刷新 =====
+    async function fetchToken(endpoint) {
+      const res = await fetch(API_BASE + endpoint, { method: "POST" });
+      if (res.status === 403) {
+        const body = await res.json();
+        window.dispatchEvent(
+          new CustomEvent("coze-auth-blocked", { detail: body })
+        );
+        throw new Error("IP_FORBIDDEN");
+      }
+      if (res.status === 503) {
+        const body = await res.json();
+        window.dispatchEvent(
+          new CustomEvent("coze-quota-exhausted", { detail: body })
+        );
+        throw new Error("QUOTA_EXHAUSTED");
+      }
+      const data = await res.json();
+      return data.token;
+    }
+
+    // ===== 事件监听（供其他组件消费） =====
+    window.addEventListener("coze-auth-blocked", function (e) {
+      console.warn("[Coze] 访问被拒 — AI 助手不可用:", e.detail.detail);
+    });
+    window.addEventListener("coze-quota-exhausted", function (e) {
+      console.warn("[Coze] 额度已用尽:", e.detail.message);
+    });
+
+    // ===== 初始化 Coze WebChat =====
+    function initCozeChat() {
+      if (typeof CozeWebSDK === "undefined" || !CozeWebSDK.WebChatClient) {
+        setTimeout(initCozeChat, 500);
+        return;
+      }
+
+      fetchToken("/token/init")
+        .then(function (token) {
+          new CozeWebSDK.WebChatClient({
+            config: { bot_id: BOT_ID },
+            auth: {
+              type: "token",
+              token: token,
+              onRefreshToken: function () {
+                return fetchToken("/token/refresh");
+              },
+            },
+            userInfo: { id: visitorId, nickname: "Visitors" },
+            ui: {
+              asstBtn: { isNeed: true },
+              chatBot: { title: "AI 助手" },
+            },
+          });
+        })
+        .catch(function (err) {
+          if (err.message === "IP_FORBIDDEN" || err.message === "QUOTA_EXHAUSTED") {
+            // 已通过 CustomEvent 通知，此处静默降级
+            console.warn("[Coze] 聊天组件已降级:", err.message);
+          } else {
+            console.error("[Coze] 初始化失败:", err);
+          }
+        });
+    }
+
+    // 等待 DOM 就绪后初始化
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initCozeChat);
+    } else {
+      initCozeChat();
+    }
+  })();
+</script>

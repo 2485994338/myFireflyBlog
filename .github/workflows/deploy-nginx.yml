@@ -33,9 +33,11 @@ jobs:
       - name: 🔧 Substitute env vars
         env:
           BLOG_DOMAIN: ${{ secrets.BLOG_DOMAIN }}
+          DEV_MACHINE_IP: ${{ secrets.DEV_MACHINE_IP }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
         run: |
           mkdir -p server/nginx
-          envsubst '${BLOG_DOMAIN}' < "${{ inputs.config_file }}" > server/nginx/default.conf
+          envsubst '${BLOG_DOMAIN} ${DEV_MACHINE_IP} ${SERVER_HOST}' < "${{ inputs.config_file }}" > server/nginx/default.conf
           echo "✅ Config generated:"
           cat server/nginx/default.conf
 
