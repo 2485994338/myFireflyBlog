@@ -32,14 +32,19 @@
       return fetch(API_BASE + endpoint, { method: "POST" })
         .then(function (res) {
           if (res.status === 403) {
-            return res.json().then(function (body) {
-              window.dispatchEvent(new CustomEvent("coze-auth-blocked", { detail: body }));
+            // Nginx 返回 HTML 403，后端返回 JSON 403，都要兼容
+            return res.text().then(function (body) {
+              var detail = body;
+              try { detail = JSON.parse(body); } catch (e) {}
+              window.dispatchEvent(new CustomEvent("coze-auth-blocked", { detail: detail }));
               throw new Error("IP_FORBIDDEN");
             });
           }
           if (res.status === 503) {
-            return res.json().then(function (body) {
-              window.dispatchEvent(new CustomEvent("coze-quota-exhausted", { detail: body }));
+            return res.text().then(function (body) {
+              var detail = body;
+              try { detail = JSON.parse(body); } catch (e) {}
+              window.dispatchEvent(new CustomEvent("coze-quota-exhausted", { detail: detail }));
               throw new Error("QUOTA_EXHAUSTED");
             });
           }

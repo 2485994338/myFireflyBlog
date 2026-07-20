@@ -118,25 +118,22 @@ server {
     }
 
     # ============================================
-    # Coze AI 助手 API 网关（第二道防线前置）
+    # Coze AI 助手 API 网关
     #
-    # 第一道防线（Nginx 层）:
-    #   allow/deny 硬拦截，非白名单 IP 直接返回 403
-    #   即使请求到达 Nginx 也不会转发到后端
+    # 博客容器与后端容器通过 coze-net 共享 Docker 网络互联，
+    # 使用容器名 coze-gateway:8080 通信。
     #
-    # 第二道防线（Java IpWhitelistFilter 层）:
-    #   应用层再次校验，防御 Nginx 配置遗漏或
-    #   容器间直连绕过 Nginx 的场景
+    # 创建共享网络:
+    #   docker network create coze-net
+    #   docker network connect coze-net myFireflyBlog
     #
-    # 白名单 IP 来源:
+    # 后端容器需在 coze-net 网络中启动:
+    #   docker run -d --name coze-gateway --network coze-net ...
+    #
+    # IP 白名单: Nginx 层 allow/deny 硬拦截
     #   ${DEV_MACHINE_IP}      开发机（由 GitHub Secret 注入）
     #   ${SERVER_HOST}         本服务器（由 GitHub Secret 注入）
     #   127.0.0.1 / ::1         localhost（固定）
-    #
-    # 部署前确认 proxy_pass 地址:
-    #   - 同机 Docker 容器: host.docker.internal:8080
-    #   - --network host 模式:   localhost:8080
-    #   - 跨机部署:              <目标服务器IP>:8080
     # ============================================
     location /api/coze/ {
         # ---- IP 白名单（Nginx 层硬拦截） ----
@@ -147,7 +144,7 @@ server {
         deny all;                     # 其他 IP → 403 Forbidden
 
         # ---- 反向代理到后端 ----
-        proxy_pass http://172.17.0.1:8080;
+        proxy_pass http://coze-gateway:8080;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
