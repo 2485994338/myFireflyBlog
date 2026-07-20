@@ -64,6 +64,9 @@ jobs:
             docker stop myFireflyBlog 2>/dev/null || true
             docker rm myFireflyBlog 2>/dev/null || true
 
+            # 确保共享网络存在
+            docker network inspect coze-net >/dev/null 2>&1 || docker network create coze-net
+
             echo "🚀 启动新容器..."
             CONFIG_MOUNT=""
             SSL_MOUNT=""
@@ -92,5 +95,24 @@ jobs:
               -p 443:443 \
               --restart always \
               nginx:alpine
+
+            # 等待容器正常启动
+            echo "⏳ 等待容器启动..."
+            for i in $(seq 1 30); do
+              if docker ps --filter "name=myFireflyBlog" --filter "status=running" --format '{{.Names}}' | grep -q myFireflyBlog; then
+                echo "  容器已运行"
+                break
+              fi
+              echo "  等待中... ($i/30)"
+              sleep 2
+            done
+
+            # 连接到 coze-net 共享网络（与后端容器通信）
+            echo "🔗 连接到 coze-net 共享网络..."
+            docker network connect coze-net myFireflyBlog 2>/dev/null || echo "  已连接，跳过"
+
+            # 重新加载 nginx
+            echo "🔄 重新加载 nginx..."
+            docker exec myFireflyBlog nginx -s reload 2>/dev/null || echo "  ⚠️  nginx reload 失败，可能还在启动中"
 
             echo "✅ 部署完成"
