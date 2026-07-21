@@ -36,6 +36,13 @@ Firefly-docs/
 
 # local deploy config (Dockerfiles, nginx, etc.)
 deploy/
+archive/deploy/
+
+# generated nginx config (from envsubst template)
+server/nginx/default.conf
+
+# local sensitive info detection scripts (not for public repo)
+scripts/check-sensitive-info.ps1
 
 cache/
 package/

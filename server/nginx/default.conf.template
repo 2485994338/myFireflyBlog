@@ -131,7 +131,7 @@ server {
     #   docker run -d --name coze-gateway --network coze-net ...
     #
     # IP 白名单: Nginx 层 allow/deny 硬拦截
-    #   ${DEV_MACHINE_IP}      开发机网段（由 Secret 注入，当前 YOUR_DEV_NETWORK）
+    #   ${DEV_MACHINE_IP}      开发机网段（由 Secret 注入）
     #   ${SERVER_HOST}         本服务器（由 GitHub Secret 注入）
     #   127.0.0.1 / ::1         localhost（固定）
     # ============================================
@@ -140,7 +140,7 @@ server {
         allow 127.0.0.1;
         allow ::1;
         allow ${SERVER_HOST};        # 博客服务器 IP（从 Secret 注入）
-        allow ${DEV_MACHINE_IP};     # 开发机网段（从 Secret 注入，当前 YOUR_DEV_NETWORK）
+        allow ${DEV_MACHINE_IP};     # 开发机网段（从 Secret 注入）
         deny all;                     # 其他 IP → 403 Forbidden
 
         # ---- 反向代理到后端 ----

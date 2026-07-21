@@ -1,0 +1,106 @@
+# ============================================
+# Gitleaks 配置 — 防止敏感信息泄露
+# 运行方式:
+#   gitleaks detect --source . -v
+#   gitleaks protect --staged  (pre-commit)
+# ============================================
+
+title = "myFireflyBlog Sensitive Info Scanner"
+
+[extend]
+useDefault = true
+
+# ======== 自定义规则 ========
+
+[[rules]]
+id = "server-ip-address"
+description = "服务器真实 IP 地址泄露"
+regex = '''(?i)(?:server_name|host|SERVER_IP|SERVER_HOST|ssh\s+root@)\s*(\d{1,3}\.){3}\d{1,3}'''
+tags = ["server", "ip", "infrastructure"]
+
+[[rules]]
+id = "ssh-private-key-path"
+description = "SSH 私钥路径泄露"
+regex = '''~/.ssh/id_rsa[^\s"'`]*(?:\s|$)'''
+tags = ["ssh", "credential", "authentication"]
+
+[[rules]]
+id = "hardcoded-ip-deploy"
+description = "部署文件中硬编码的 IP 地址"
+regex = '''\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'''
+allowlist = [
+    # 允许示例/占位 IP
+    "YOUR_SERVER_IP",
+    "YOUR_SERVER_IP_OR_DOMAIN",
+    # 允许私有 IP 段
+    "10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}",
+    "127\\.0\\.0\\.1",
+    "172\\.1[6-9]\\.\\d{1,3}\\.\\d{1,3}",
+    "172\\.2[0-9]\\.\\d{1,3}\\.\\d{1,3}",
+    "172\\.3[0-1]\\.\\d{1,3}\\.\\d{1,3}",
+    "192\\.168\\.\\d{1,3}\\.\\d{1,3}",
+    "0\\.0\\.0\\.0",
+    "255\\.255\\.255\\.255",
+    # 允许 xx.xx.xx.xx 模式（已去敏）
+    "xx\\.xx\\.xx\\.xx",
+    "xxx\\.xxx\\.xxx\\.xxx",
+]
+tags = ["infrastructure", "server"]
+
+[[rules]]
+id = "internal-network-cidr"
+description = "内网段 / CIDR 泄露"
+regex = '''\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}'''
+allowlist = [
+    "10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}/\\d{1,2}",
+    "127\\.0\\.0\\.1/\\d{1,2}",
+    "172\\.1[6-9]\\.\\d{1,3}\\.\\d{1,3}/\\d{1,2}",
+    "172\\.2[0-9]\\.\\d{1,3}\\.\\d{1,3}/\\d{1,2}",
+    "172\\.3[0-1]\\.\\d{1,3}\\.\\d{1,3}/\\d{1,2}",
+    "192\\.168\\.\\d{1,3}\\.\\d{1,3}/\\d{1,2}",
+    "0\\.0\\.0\\.0/\\d{1,2}",
+]
+tags = ["network", "infrastructure"]
+
+[[rules]]
+id = "server-file-path"
+description = "服务器内部文件路径泄露"
+regex = '''/root/cc/[^\s"')\]]+'''
+tags = ["path", "infrastructure"]
+
+[[rules]]
+id = "ssh-command-with-real-ip"
+description = "SSH 命令含真实 IP"
+regex = '''ssh\s+(?:-i\s+\S+\s+)?\S+@(?:\d{1,3}\.){3}\d{1,3}'''
+tags = ["ssh", "credential"]
+
+[[rules]]
+id = "github-token"
+description = "GitHub Token/PAT 泄露"
+regex = '''ghp_[0-9a-zA-Z]{36}|gho_[0-9a-zA-Z]{36}|github_pat_[0-9a-zA-Z]{22,}'''
+tags = ["github", "token", "credential"]
+
+[[rules]]
+id = "private-key-content"
+description = "私钥内容泄露"
+regex = '''-----BEGIN\s?(?:RSA|DSA|EC|OPENSSH|PRIVATE)\s?KEY-----'''
+tags = ["credential", "private-key"]
+
+# ======== 排除目录 ========
+[allowlist]
+paths = [
+    # 第三方代码
+    "(.*)?node_modules(.*)?",
+    # 构建产物
+    "(.*)?dist(.*)?",
+    # 缓存
+    "(.*)?cache(.*)?",
+    # git 目录
+    "(.*)?\\.git(.*)?",
+    # Pagefind 索引
+    "(.*)?pagefind(.*)?",
+    # 锁文件
+    "pnpm-lock\\.yaml",
+    # 已归档的旧部署文档（允许占位 IP）
+    "archive/deploy/",
+]
