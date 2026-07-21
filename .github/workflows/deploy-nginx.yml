@@ -7,10 +7,10 @@
 # 流程: envsubst 替换模板变量 → SCP 上传 → nginx -t 测试 → nginx -s reload
 #
 # 前置条件 — 在 GitHub 仓库设置中添加以下 Secrets:
-#   - SERVER_HOST: 服务器 IP (YOUR_SERVER_IP)
-#   - SERVER_USERNAME: SSH 用户名 (YOUR_USER)
+#   - SERVER_HOST: 服务器 IP (替换为你的服务器 IP)
+#   - SERVER_USERNAME: SSH 用户名 (替换为你的 SSH 登录名)
 #   - SERVER_SSH_KEY: SSH 私钥内容
-#   - BLOG_DOMAIN: 博客域名或服务器 IP (YOUR_SERVER_IP)
+#   - BLOG_DOMAIN: 博客域名或服务器 IP (替换为你的域名或服务器 IP)
 # ============================================
 
 name: Deploy Nginx Config
