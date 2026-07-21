@@ -20,15 +20,15 @@
     var API_BASE = "/api/coze";
     var SDK_URL = "https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.19/libs/cn/index.js";
 
-    // ===== 访客 ID（会话隔离） =====
+    // ===== 访客 ID（跨会话关联，持久化到 localStorage） =====
     var visitorId = localStorage.getItem("coze_visitor_id");
     if (!visitorId) {
       visitorId = "v_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
       localStorage.setItem("coze_visitor_id", visitorId);
     }
 
-    // ===== 清除 Coze SDK 缓存的会话状态 =====
-    // 防止页面刷新后 SDK 用新 token 访问旧 conversation 导致 4101 权限错误
+    // ===== 清除 Coze SDK 缓存的会话状态（安全兜底） =====
+    // 防止后端 Plan B 未生效时 SDK 用新 token 访问旧 conversation 导致 4101
     function clearCozeSessionCache() {
       var keysToRemove = [];
       for (var i = 0; i < localStorage.length; i++) {
@@ -37,16 +37,18 @@
           keysToRemove.push(key);
         }
       }
-      // 保留访客 ID，只清 SDK 内部状态
       keysToRemove = keysToRemove.filter(function (k) { return k !== "coze_visitor_id"; });
       keysToRemove.forEach(function (k) { localStorage.removeItem(k); });
     }
     clearCozeSessionCache();
 
     // ===== Token 获取/刷新 =====
-    function fetchToken(endpoint) {
-      return fetch(API_BASE + endpoint, { method: "POST" })
-        .then(function (res) {
+    function fetchToken(endpoint, userId) {
+      return fetch(API_BASE + endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: userId }),
+      }).then(function (res) {
           if (res.status === 403) {
             // Nginx 返回 HTML 403，后端返回 JSON 403，都要兼容
             return res.text().then(function (body) {
@@ -133,36 +135,55 @@
       showCozeToast("AI 助手额度已用尽，请联系管理员", "warning");
     });
 
+    // ===== 初始化后端会话（Plan B: Redis 会话映射） =====
+    // 返回 { sessionId }，或 null（兜底使用本地 visitorId）
+    function initSession() {
+      return fetch(API_BASE + "/session/init?visitorId=" + encodeURIComponent(visitorId), { method: "POST" })
+        .then(function (res) {
+          if (res.status === 403) {
+            return res.text().then(function () { return null; });
+          }
+          return res.json().then(function (data) { return data.sessionId || null; });
+        })
+        .catch(function () { return null; });
+    }
+
     // ===== 初始化 Coze WebChat =====
     function initCozeChat() {
-      loadCozeSDK(function () {
-        fetchToken("/token/init")
-          .then(function (token) {
-            new CozeWebSDK.WebChatClient({
-              config: { bot_id: BOT_ID },
-              auth: {
-                type: "token",
-                token: token,
-                onRefreshToken: function () {
-                  return fetchToken("/token/refresh");
+      // Step 1: 获取后端会话 ID（Plan B 隔离）
+      initSession().then(function (sessionId) {
+        var userId = sessionId || visitorId;  // Plan B 兜底: 用本地 visitorId
+
+        // Step 2: 加载 SDK + 获取 Token（传递 userId 实现 per-user 会话隔离）
+        loadCozeSDK(function () {
+          fetchToken("/token/init", userId)
+            .then(function (token) {
+              new CozeWebSDK.WebChatClient({
+                config: { bot_id: BOT_ID },
+                auth: {
+                  type: "token",
+                  token: token,
+                  onRefreshToken: function () {
+                    return fetchToken("/token/refresh", userId);
+                  },
                 },
-              },
-              userInfo: { id: visitorId, nickname: "Visitors" },
-              ui: {
-                asstBtn: { isNeed: true },
-                chatBot: { title: "AI 助手" },
-              },
+                userInfo: { id: userId, nickname: "Visitors" },
+                ui: {
+                  asstBtn: { isNeed: true },
+                  chatBot: { title: "AI 助手" },
+                },
+              });
+            })
+            .catch(function (err) {
+              if (err.message === "IP_FORBIDDEN") {
+                showCozeToast("AI 助手暂时不可用（网络限制）", "error");
+              } else if (err.message === "QUOTA_EXHAUSTED") {
+                showCozeToast("AI 助手额度已用尽，请联系管理员", "warning");
+              } else {
+                console.error("[Coze] 初始化失败:", err);
+              }
             });
-          })
-          .catch(function (err) {
-            if (err.message === "IP_FORBIDDEN") {
-              showCozeToast("AI 助手暂时不可用（网络限制）", "error");
-            } else if (err.message === "QUOTA_EXHAUSTED") {
-              showCozeToast("AI 助手额度已用尽，请联系管理员", "warning");
-            } else {
-              console.error("[Coze] 初始化失败:", err);
-            }
-          });
+        });
       });
     }
 
