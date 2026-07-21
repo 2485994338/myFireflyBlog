@@ -27,6 +27,22 @@
       localStorage.setItem("coze_visitor_id", visitorId);
     }
 
+    // ===== 清除 Coze SDK 缓存的会话状态 =====
+    // 防止页面刷新后 SDK 用新 token 访问旧 conversation 导致 4101 权限错误
+    function clearCozeSessionCache() {
+      var keysToRemove = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var key = localStorage.key(i);
+        if (key && (key.startsWith("coze_") || key.startsWith("COZE_"))) {
+          keysToRemove.push(key);
+        }
+      }
+      // 保留访客 ID，只清 SDK 内部状态
+      keysToRemove = keysToRemove.filter(function (k) { return k !== "coze_visitor_id"; });
+      keysToRemove.forEach(function (k) { localStorage.removeItem(k); });
+    }
+    clearCozeSessionCache();
+
     // ===== Token 获取/刷新 =====
     function fetchToken(endpoint) {
       return fetch(API_BASE + endpoint, { method: "POST" })
