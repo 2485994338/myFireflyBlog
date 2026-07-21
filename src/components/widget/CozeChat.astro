@@ -68,12 +68,53 @@
       document.head.appendChild(script);
     }
 
+    // ===== 错误提示 Toast =====
+    function showCozeToast(message, type) {
+      var existing = document.getElementById("coze-toast");
+      if (existing) existing.remove();
+
+      var toast = document.createElement("div");
+      toast.id = "coze-toast";
+      toast.style.cssText =
+        "position:fixed;bottom:90px;right:24px;z-index:9999;" +
+        "padding:12px 16px;border-radius:8px;font-size:14px;line-height:1.5;" +
+        "max-width:300px;box-shadow:0 4px 12px rgba(0,0,0,0.15);cursor:pointer;" +
+        "animation:cozeFadeIn 0.3s ease;transition:opacity 0.3s;" +
+        (type === "error"
+          ? "background:#fff0f0;color:#c00;border:1px solid #ffc0c0;"
+          : "background:#fffbe6;color:#b8860b;border:1px solid #ffe58f;");
+
+      var icon = type === "error" ? "✕" : "⚠";
+      toast.innerHTML = '<span style="margin-right:8px">' + icon + "</span>" +
+        '<span>' + message + '</span><span style="margin-left:8px;opacity:0.5">×</span>';
+
+      toast.addEventListener("click", function () { toast.remove(); });
+      document.body.appendChild(toast);
+
+      // 自动消失
+      setTimeout(function () {
+        if (toast.parentNode) {
+          toast.style.opacity = "0";
+          setTimeout(function () { toast.remove(); }, 300);
+        }
+      }, 10000);
+    }
+
+    // 注入 Toast 动画
+    if (!document.getElementById("coze-toast-style")) {
+      var style = document.createElement("style");
+      style.id = "coze-toast-style";
+      style.textContent =
+        "@keyframes cozeFadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}";
+      document.head.appendChild(style);
+    }
+
     // ===== 事件监听 =====
-    window.addEventListener("coze-auth-blocked", function (e) {
-      console.warn("[Coze] 访问被拒 — AI 助手不可用:", e.detail.detail);
+    window.addEventListener("coze-auth-blocked", function () {
+      showCozeToast("AI 助手暂时不可用（网络限制）", "error");
     });
-    window.addEventListener("coze-quota-exhausted", function (e) {
-      console.warn("[Coze] 额度已用尽:", e.detail.message);
+    window.addEventListener("coze-quota-exhausted", function () {
+      showCozeToast("AI 助手额度已用尽，请联系管理员", "warning");
     });
 
     // ===== 初始化 Coze WebChat =====
@@ -98,8 +139,10 @@
             });
           })
           .catch(function (err) {
-            if (err.message === "IP_FORBIDDEN" || err.message === "QUOTA_EXHAUSTED") {
-              console.warn("[Coze] 聊天组件已降级:", err.message);
+            if (err.message === "IP_FORBIDDEN") {
+              showCozeToast("AI 助手暂时不可用（网络限制）", "error");
+            } else if (err.message === "QUOTA_EXHAUSTED") {
+              showCozeToast("AI 助手额度已用尽，请联系管理员", "warning");
             } else {
               console.error("[Coze] 初始化失败:", err);
             }

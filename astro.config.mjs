@@ -286,6 +286,12 @@ export default defineConfig({
 	vite: {
 		plugins: [tailwindcss()],
 		server: {
+			proxy: {
+				"/api/coze": {
+					target: "http://localhost:8080",
+					changeOrigin: true,
+				},
+			},
 			watch: {
 				ignored: ["**/package/**", "**/Firefly-docs/**"],
 			},
