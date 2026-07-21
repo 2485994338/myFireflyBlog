@@ -44,6 +44,9 @@ server/nginx/default.conf
 # local sensitive info detection scripts (not for public repo)
 scripts/check-sensitive-info.ps1
 
+# Claude Code project instructions (local, not for public repo)
+CLAUDE.md
+
 cache/
 package/
 .obsidian/
