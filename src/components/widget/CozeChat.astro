@@ -161,7 +161,7 @@
               new CozeWebSDK.WebChatClient({
                 config: { bot_id: BOT_ID },
                 auth: {
-                  type: "oauth",
+                  type: "token",
                   token: token,
                   onRefreshToken: function () {
                     return fetchToken("/token/refresh", userId);
